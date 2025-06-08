@@ -28,6 +28,7 @@ from multiaddr import (
 )
 import trio
 
+from examples.utils import get_random_available_port  # Add this import
 from libp2p import (
     new_host,
 )
@@ -57,7 +58,7 @@ from libp2p.peer.peerinfo import (
 logger = logging.getLogger("libp2p.identity.identify-push-example")
 
 # Default port configuration
-DEFAULT_PORT = 8888
+EXAMPLE_DEFAULT_PORT = 8888
 
 
 def custom_identify_push_handler_for(host):
@@ -246,8 +247,8 @@ def main() -> None:
     """
 
     example = (
-        f"/ip4/127.0.0.1/tcp/{DEFAULT_PORT}/p2p/"
-        "QmQn4SwGkDZkUEpBRBvTmheQycxAHJUNmVEnjA2v1qe8Q"
+        f"/ip4/127.0.0.1/tcp/{EXAMPLE_DEFAULT_PORT}/p2p/"
+        "QmQn4SwGkDZKkUEpBRBvTmheQycxAHJUNmVEnjA2v1qe8Q"
     )
 
     parser = argparse.ArgumentParser(description=description)
@@ -256,8 +257,8 @@ def main() -> None:
         "--port",
         type=int,
         help=(
-            f"port to listen on (default: {DEFAULT_PORT} for listener, "
-            f"{DEFAULT_PORT + 1} for dialer)"
+            f"port to listen on (default: {EXAMPLE_DEFAULT_PORT} for listener, "
+            f"{EXAMPLE_DEFAULT_PORT + 1} for dialer)"
         ),
     )
     parser.add_argument(
@@ -270,12 +271,12 @@ def main() -> None:
 
     try:
         if args.destination:
-            # Run in dialer mode with default port DEFAULT_PORT + 1 if not specified
-            port = args.port if args.port is not None else DEFAULT_PORT + 1
+            # Run in dialer mode with random available port if not specified
+            port = args.port if args.port is not None else get_random_available_port()
             trio.run(run_dialer, port, args.destination)
         else:
-            # Run in listener mode with default port DEFAULT_PORT if not specified
-            port = args.port if args.port is not None else DEFAULT_PORT
+            # Run in listener mode with random available port if not specified
+            port = args.port if args.port is not None else get_random_available_port()
             trio.run(run_listener, port)
     except KeyboardInterrupt:
         print("\nInterrupted by user")

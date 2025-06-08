@@ -5,6 +5,7 @@ import logging
 import multiaddr
 import trio
 
+from examples.utils import get_random_available_port  # <-- Add this import
 from libp2p import (
     new_host,
 )
@@ -104,13 +105,11 @@ def main() -> None:
     """
 
     example_maddr = (
-        "/ip4/127.0.0.1/tcp/8888/p2p/QmQn4SwGkDZkUEpBRBvTmheQycxAHJUNmVEnjA2v1qe8Q"
+        "/ip4/127.0.0.1/tcp/8888/p2p/QmQn4SwGkDZKkUEpBRBvTmheQycxAHJUNmVEnjA2v1qe8Q"
     )
 
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument(
-        "-p", "--port", default=8888, type=int, help="source port number"
-    )
+    parser.add_argument("-p", "--port", type=int, help="source port number (optional)")
     parser.add_argument(
         "-d",
         "--destination",
@@ -119,11 +118,11 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    if not args.port:
-        raise RuntimeError("failed to determine local port")
+    # Use random port if not specified
+    port = args.port if args.port is not None else get_random_available_port()
 
     try:
-        trio.run(run, *(args.port, args.destination))
+        trio.run(run, *(port, args.destination))
     except KeyboardInterrupt:
         pass
 
