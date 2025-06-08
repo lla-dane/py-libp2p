@@ -1,10 +1,11 @@
 import argparse
-import random
-import socket
 
 import multiaddr
 import trio
 
+from examples.utils import (
+    get_random_available_port,
+)
 from libp2p import (
     new_host,
 )
@@ -75,6 +76,7 @@ async def run(port: int, destination: str, seed: int = None) -> None:
             msg = b"hi, there!\n"
 
             await stream.write(msg)
+            # TODO: check why the stream is closed after the first write ???
             # Notify the other side about EOF
             await stream.close()
             response = await stream.read()
@@ -116,23 +118,6 @@ def main() -> None:
         trio.run(run, port, args.destination, args.seed)
     except KeyboardInterrupt:
         pass
-
-
-def is_port_available(port: int) -> bool:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        try:
-            sock.bind(("", port))
-            return True
-        except OSError:
-            return False
-
-
-def get_random_available_port(start: int = 10000, end: int = 20000) -> int:
-    for _ in range(50):  # try up to 50 random ports
-        port = random.randint(start, end)
-        if is_port_available(port):
-            return port
-    raise RuntimeError("Could not find an available port in the given range.")
 
 
 if __name__ == "__main__":
