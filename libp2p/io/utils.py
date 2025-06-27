@@ -15,13 +15,31 @@ async def read_exactly(
     NOTE: relying on exceptions to break out on erroneous conditions, like EOF
     """
     buffer = bytearray()
-    buffer.extend(await reader.read(n))
+    data = await reader.read(n)
+
+    # If we get 0 bytes on first read and requested > 0, it's likely a closed stream
+    if len(data) == 0 and n > 0:
+        raise IncompleteReadError(
+            {"requested_count": n, "received_count": 0, "received_data": data}
+        )
+
+    buffer.extend(data)
 
     for _ in range(retry_count):
         if len(buffer) < n:
             remaining = n - len(buffer)
-            buffer.extend(await reader.read(remaining))
+            chunk = await reader.read(remaining)
+            # If we get no more data, the stream is closed
+            if len(chunk) == 0:
+                break
+            buffer.extend(chunk)
 
         else:
             return bytes(buffer)
-    raise IncompleteReadError({"requested_count": n, "received_count": len(buffer)})
+    raise IncompleteReadError(
+        {
+            "requested_count": n,
+            "received_count": len(buffer),
+            "received_data": bytes(buffer),
+        }
+    )
