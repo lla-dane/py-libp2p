@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "libp2p"
-version = "0.2.7"
+version = "0.2.8"
 description = "libp2p: The Python implementation of the libp2p networking stack"
 readme = "README.md"
 requires-python = ">=3.10, <4.0"
@@ -31,6 +31,7 @@ dependencies = [
     "trio-typing>=0.0.4",
     "trio>=0.26.0",
     "fastecdsa==2.3.2; sys_platform != 'win32'",
+    "zeroconf (>=0.147.0,<0.148.0)",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -54,6 +55,7 @@ identify-demo = "examples.identify.identify:main"
 identify-push-demo = "examples.identify_push.identify_push_demo:run_main"
 identify-push-listener-dialer-demo = "examples.identify_push.identify_push_listener_dialer:main"
 pubsub-demo = "examples.pubsub.pubsub:main"
+mdns-demo = "examples.mDNS.mDNS:main"
 
 [project.optional-dependencies]
 dev = [
@@ -187,7 +189,7 @@ name = "Removals"
 showcontent = true
 
 [tool.bumpversion]
-current_version = "0.2.7"
+current_version = "0.2.8"
 parse = """
     (?P<major>\\d+)
     \\.(?P<minor>\\d+)
@@ -221,12 +223,7 @@ values = ["alpha", "beta", "stable"]
 [tool.bumpversion.part.devnum]
 
 [[tool.bumpversion.files]]
-filename = "setup.py"
-search = "version=\"{current_version}\""
-replace = "version=\"{new_version}\""
-
-[[tool.bumpversion.files]]
-filename = "pyproject.toml"              # Keep pyproject.toml version in sync
+filename = "pyproject.toml"
 search = 'version = "{current_version}"'
 replace = 'version = "{new_version}"'
 
