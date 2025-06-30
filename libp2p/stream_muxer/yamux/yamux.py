@@ -480,54 +480,29 @@ class Yamux(IMuxedConn):
     async def handle_incoming(self) -> None:
         while not self.event_shutting_down.is_set():
             try:
-                header = await self.secured_conn.read(HEADER_SIZE)
-                if not header or len(header) < HEADER_SIZE:
+                try:
+                    header = await read_exactly(self.secured_conn, HEADER_SIZE)
+                except IncompleteReadError:
                     logging.debug(
-                        f"Connection closed orincomplete header for peer {self.peer_id}"
+                        f"Connection closed or incomplete header for peer "
+                        f"{self.peer_id}"
                     )
                     self.event_shutting_down.set()
                     await self._cleanup_on_error()
                     break
+
+                # Debug: log raw header bytes
+                logging.debug(f"Raw header bytes: {header.hex()}")
+
                 version, typ, flags, stream_id, length = struct.unpack(
                     YAMUX_HEADER_FORMAT, header
                 )
                 logging.debug(
                     f"Received header for peer {self.peer_id}:"
-                    f"type={typ}, flags={flags}, stream_id={stream_id},"
-                    f"length={length}"
+                    f"version={version}, type={typ}, flags={flags}, "
+                    f"stream_id={stream_id}, length={length}"
                 )
-                if typ == TYPE_DATA and flags & FLAG_SYN:
-                    async with self.streams_lock:
-                        if stream_id not in self.streams:
-                            stream = YamuxStream(stream_id, self, False)
-                            self.streams[stream_id] = stream
-                            self.stream_buffers[stream_id] = bytearray()
-                            self.stream_events[stream_id] = trio.Event()
-                            ack_header = struct.pack(
-                                YAMUX_HEADER_FORMAT,
-                                0,
-                                TYPE_DATA,
-                                FLAG_ACK,
-                                stream_id,
-                                0,
-                            )
-                            await self.secured_conn.write(ack_header)
-                            logging.debug(
-                                f"Sending stream {stream_id}"
-                                f"to channel for peer {self.peer_id}"
-                            )
-                            await self.new_stream_send_channel.send(stream)
-                        else:
-                            rst_header = struct.pack(
-                                YAMUX_HEADER_FORMAT,
-                                0,
-                                TYPE_DATA,
-                                FLAG_RST,
-                                stream_id,
-                                0,
-                            )
-                            await self.secured_conn.write(rst_header)
-                elif typ == TYPE_DATA and flags & FLAG_RST:
+                if typ == TYPE_DATA and flags & FLAG_RST:
                     async with self.streams_lock:
                         if stream_id in self.streams:
                             logging.debug(
@@ -582,55 +557,73 @@ class Yamux(IMuxedConn):
                             f"{length} for peer {self.peer_id}"
                         )
                 elif typ == TYPE_DATA:
+                    # Always read the data payload, even for SYN/ACK/RST messages
                     try:
-                        if length > 0:
-                            try:
-                                data = await read_exactly(self.secured_conn, length)
-                            except IncompleteReadError as e:
-                                details = getattr(e, "args", [{}])[0] if e.args else {}
-                                received = (
-                                    details.get("received_count", 0)
-                                    if isinstance(details, dict)
-                                    else 0
-                                )
-                                received_data = (
-                                    details.get("received_data", b"")
-                                    if isinstance(details, dict)
-                                    else b""
-                                )
-                                logging.warning(
-                                    f"Expected {length} bytes but got {received} bytes "
-                                    f"for peer {self.peer_id} stream {stream_id}"
-                                )
-                                # For partial reads, continue with what we got
-                                # or empty data
-                                if received == 0:
-                                    logging.error(
-                                        f"No data received when expecting "
-                                        f"{length} bytes"
-                                    )
-                                    continue
-                                data = received_data
-                        else:
-                            data = b""
+                        data = (
+                            await read_exactly(self.secured_conn, length)
+                            if length > 0
+                            else b""
+                        )
+                        logging.debug(
+                            f"Read {len(data)} bytes of data for stream {stream_id}"
+                        )
 
-                        async with self.streams_lock:
-                            if stream_id in self.streams:
-                                self.stream_buffers[stream_id].extend(data)
-                                self.stream_events[stream_id].set()
-                                if flags & FLAG_FIN:
-                                    logging.debug(
-                                        f"Received FIN for stream {self.peer_id}:"
-                                        f"{stream_id}, marking recv_closed"
+                        # Handle SYN flag - create new stream
+                        if flags & FLAG_SYN:
+                            async with self.streams_lock:
+                                if stream_id not in self.streams:
+                                    stream = YamuxStream(stream_id, self, False)
+                                    self.streams[stream_id] = stream
+                                    self.stream_buffers[stream_id] = bytearray()
+                                    self.stream_events[stream_id] = trio.Event()
+                                    # Store any data that came with SYN
+                                    if data:
+                                        self.stream_buffers[stream_id].extend(data)
+                                        self.stream_events[stream_id].set()
+                                    ack_header = struct.pack(
+                                        YAMUX_HEADER_FORMAT,
+                                        0,
+                                        TYPE_DATA,
+                                        FLAG_ACK,
+                                        stream_id,
+                                        0,
                                     )
-                                    self.streams[stream_id].recv_closed = True
-                                    if self.streams[stream_id].send_closed:
-                                        self.streams[stream_id].closed = True
-                            else:
-                                logging.warning(
-                                    f"Received data for unknown stream {stream_id} "
-                                    f"from peer {self.peer_id} (length={length})"
-                                )
+                                    await self.secured_conn.write(ack_header)
+                                    logging.debug(
+                                        f"Sending stream {stream_id}"
+                                        f"to channel for peer {self.peer_id}"
+                                    )
+                                    await self.new_stream_send_channel.send(stream)
+                                else:
+                                    rst_header = struct.pack(
+                                        YAMUX_HEADER_FORMAT,
+                                        0,
+                                        TYPE_DATA,
+                                        FLAG_RST,
+                                        stream_id,
+                                        0,
+                                    )
+                                    await self.secured_conn.write(rst_header)
+                        else:
+                            async with self.streams_lock:
+                                if stream_id in self.streams:
+                                    # Only store data if it's not a control message
+                                    if not (flags & (FLAG_ACK | FLAG_RST)):
+                                        self.stream_buffers[stream_id].extend(data)
+                                        self.stream_events[stream_id].set()
+                                    if flags & FLAG_FIN:
+                                        logging.debug(
+                                            f"Received FIN for stream {self.peer_id}:"
+                                            f"{stream_id}, marking recv_closed"
+                                        )
+                                        self.streams[stream_id].recv_closed = True
+                                        if self.streams[stream_id].send_closed:
+                                            self.streams[stream_id].closed = True
+                                else:
+                                    logging.warning(
+                                        f"Received data for unknown stream {stream_id} "
+                                        f"from peer {self.peer_id} (length={length})"
+                                    )
                     except Exception as e:
                         logging.error(f"Error reading data for stream {stream_id}: {e}")
                         # Mark stream as closed on read error
