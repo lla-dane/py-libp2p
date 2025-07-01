@@ -502,6 +502,7 @@ class Yamux(IMuxedConn):
                     f"version={version}, type={typ}, flags={flags}, "
                     f"stream_id={stream_id}, length={length}"
                 )
+
                 if typ == TYPE_DATA and flags & FLAG_RST:
                     async with self.streams_lock:
                         if stream_id in self.streams:
