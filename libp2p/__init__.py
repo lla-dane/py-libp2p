@@ -281,7 +281,6 @@ def new_host(
     :param bootstrap: optional list of bootstrap peer addresses as strings
     :return: return a host instance
     """
-    print("INIT")
     swarm = new_swarm(
         key_pair=key_pair,
         muxer_opt=muxer_opt,
