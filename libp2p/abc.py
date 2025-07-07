@@ -1550,7 +1550,6 @@ class IHost(ABC):
 
         """
 
-    # FIXME: Replace with correct return type
     @abstractmethod
     def get_mux(self) -> "Multiselect":
         """
