@@ -507,11 +507,14 @@ class Yamux(IMuxedConn):
                 if typ == TYPE_DATA and length > 0:
                     try:
                         data = await read_exactly(self.secured_conn, length)
+                        if data is None:
+                            data = b""
                         logging.debug(
                             f"Read {len(data)} bytes of data for stream {stream_id}"
                         )
                     except Exception as e:
                         logging.error(f"Error reading data for stream {stream_id}: {e}")
+                        data = b""  # Ensure data is never None
                         # Mark stream as closed on read error
                         async with self.streams_lock:
                             if stream_id in self.streams:
@@ -574,7 +577,7 @@ class Yamux(IMuxedConn):
                     async with self.streams_lock:
                         if stream_id in self.streams:
                             # Store data
-                            if data:
+                            if data and data is not None:
                                 self.stream_buffers[stream_id].extend(data)
                                 self.stream_events[stream_id].set()
                             # Handle flags
@@ -612,7 +615,7 @@ class Yamux(IMuxedConn):
                                     self.streams[stream_id] = stream
                                     # Initialize stream buffer
                                     buffer = bytearray()
-                                    if data:
+                                    if data and data is not None:
                                         buffer.extend(data)
                                     self.stream_buffers[stream_id] = buffer
                                     self.stream_events[stream_id] = trio.Event()
