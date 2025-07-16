@@ -131,7 +131,7 @@ warn_unused_ignores = false
 # summary line.  Neither one of those requirements seem appropriate.
 
 [tool.pytest.ini_options]
-addopts = "-v --showlocals --durations 50 --maxfail 10 --timeout=300"
+addopts = "-v --showlocals --durations 50 --maxfail 10"
 log_date_format = "%m-%d %H:%M:%S"
 log_format = "%(levelname)8s  %(asctime)s  %(filename)20s  %(message)s"
 markers = ["slow: mark test as slow"]

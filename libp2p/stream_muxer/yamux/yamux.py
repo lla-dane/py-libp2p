@@ -103,28 +103,25 @@ class YamuxStream(IMuxedStream):
         sent = 0
 
         while sent < total_len:
+            # Wait for available window
+            while self.send_window == 0 and not self.closed:
+                await trio.sleep(0.01)
+
+            if self.closed:
+                raise MuxedStreamError("Stream is closed")
+
+            # Calculate how much we can send now
             async with self.window_lock:
-                # Wait for available window
-                while self.send_window == 0 and not self.closed:
-                    # Release lock while waiting
-                    self.window_lock.release()
-                    await trio.sleep(0.01)
-                    await self.window_lock.acquire()
-
-                if self.closed:
-                    raise MuxedStreamError("Stream is closed")
-
-                # Calculate how much we can send now
                 to_send = min(self.send_window, total_len - sent)
                 chunk = data[sent : sent + to_send]
                 self.send_window -= to_send
 
-                # Send the data
-                header = struct.pack(
-                    YAMUX_HEADER_FORMAT, 0, TYPE_DATA, 0, self.stream_id, len(chunk)
-                )
-                await self.conn.secured_conn.write(header + chunk)
-                sent += to_send
+            # Send the data
+            header = struct.pack(
+                YAMUX_HEADER_FORMAT, 0, TYPE_DATA, 0, self.stream_id, len(chunk)
+            )
+            await self.conn.secured_conn.write(header + chunk)
+            sent += to_send
 
         # If window is getting low, consider updating
         if self.send_window < DEFAULT_WINDOW_SIZE // 2:
@@ -348,7 +345,6 @@ class Yamux(IMuxedConn):
             else:
                 if self.on_close is not None:
                     await self.on_close()
-        await trio.sleep(0.1)
 
     @property
     def is_closed(self) -> bool:
@@ -507,6 +503,7 @@ class Yamux(IMuxedConn):
                 if typ == TYPE_DATA and length > 0:
                     try:
                         data = await read_exactly(self.secured_conn, length)
+                        # Ensure data is never None
                         if data is None:
                             data = b""
                         logging.debug(
@@ -521,7 +518,8 @@ class Yamux(IMuxedConn):
                                 self.streams[stream_id].recv_closed = True
                                 if self.streams[stream_id].send_closed:
                                     self.streams[stream_id].closed = True
-                                self.stream_events[stream_id].set()
+                                if stream_id in self.stream_events:
+                                    self.stream_events[stream_id].set()
 
                 if typ == TYPE_GO_AWAY:
                     error_code = length
@@ -576,10 +574,11 @@ class Yamux(IMuxedConn):
                 elif typ == TYPE_DATA:
                     async with self.streams_lock:
                         if stream_id in self.streams:
-                            # Store data
-                            if data and data is not None:
+                            # Store data - ensure data is not None before extending
+                            if data is not None and len(data) > 0:
                                 self.stream_buffers[stream_id].extend(data)
-                                self.stream_events[stream_id].set()
+                                if stream_id in self.stream_events:
+                                    self.stream_events[stream_id].set()
                             # Handle flags
                             if flags & FLAG_SYN:
                                 logging.debug(
@@ -599,7 +598,8 @@ class Yamux(IMuxedConn):
                                 self.streams[stream_id].recv_closed = True
                                 if self.streams[stream_id].send_closed:
                                     self.streams[stream_id].closed = True
-                                self.stream_events[stream_id].set()
+                                if stream_id in self.stream_events:
+                                    self.stream_events[stream_id].set()
                             if flags & FLAG_RST:
                                 logging.debug(
                                     f"Resetting stream {stream_id} "
@@ -607,7 +607,8 @@ class Yamux(IMuxedConn):
                                 )
                                 self.streams[stream_id].closed = True
                                 self.streams[stream_id].reset_received = True
-                                self.stream_events[stream_id].set()
+                                if stream_id in self.stream_events:
+                                    self.stream_events[stream_id].set()
                         else:
                             if flags & FLAG_SYN:
                                 if stream_id not in self.streams:
@@ -615,7 +616,7 @@ class Yamux(IMuxedConn):
                                     self.streams[stream_id] = stream
                                     # Initialize stream buffer
                                     buffer = bytearray()
-                                    if data and data is not None:
+                                    if data is not None and len(data) > 0:
                                         buffer.extend(data)
                                     self.stream_buffers[stream_id] = buffer
                                     self.stream_events[stream_id] = trio.Event()
@@ -681,8 +682,6 @@ class Yamux(IMuxedConn):
                 ):
                     await self._cleanup_on_error()
                     break
-                # For other errors, log and continue
-                await trio.sleep(0.01)
 
     async def _cleanup_on_error(self) -> None:
         # Set shutdown flag first to prevent other operations
@@ -724,6 +723,6 @@ class Yamux(IMuxedConn):
             except Exception as callback_error:
                 logging.error(f"Error in on_close callback: {callback_error}")
 
-        # Cancel nursery tasks
+        # Cancel nursery tasks if available
         if self._nursery:
             self._nursery.cancel_scope.cancel()
