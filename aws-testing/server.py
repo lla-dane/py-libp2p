@@ -1,3 +1,5 @@
+import logging
+
 import multiaddr
 from ping import handle_ping
 import trio
@@ -13,6 +15,8 @@ PING_PROTOCOL_ID = TProtocol("/ipfs/ping/1.0.0")
 PING_LENGTH = 32
 RESP_TIMEOUT = 60
 
+logging.disable(logging.CRITICAL)
+
 
 async def run() -> None:
     listen_addr = multiaddr.Multiaddr("/ip4/0.0.0.0/tcp/8000")
@@ -23,8 +27,12 @@ async def run() -> None:
 
         host.set_stream_handler(PING_PROTOCOL_ID, handle_ping)
 
-        print(f"Server running at /ip4/0.0.0.0/tcp/8000/p2p/{host.get_id()}")
-        # print(f"Server running at /ip4/15.188.49.159/tcp/8000/p2p/{host.get_id()}")
+        print(
+            f"python client.py -d /ip4/0.0.0.0/tcp/8000/p2p/{host.get_id()} -p 10"
+        )  # Local
+        print(
+            f"python client.py -d /ip4/15.188.49.159/tcp/8000/p2p/{host.get_id()} -p 10"
+        )  # AWS EC2 iinstance
         await trio.sleep_forever()
 
 

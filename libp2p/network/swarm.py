@@ -240,9 +240,7 @@ class Swarm(Service, INetworkService):
         logger.debug("attempting to open a stream to peer %s", peer_id)
 
         swarm_conn = await self.dial_peer(peer_id)
-        dd = "Yes" if swarm_conn is None else "No"
-
-        print(f"Is swarm conn None: {dd}")
+        _ = "Yes" if swarm_conn is None else "No"
 
         net_stream = await swarm_conn.new_stream()
         logger.debug("successfully opened a stream to peer %s", peer_id)
@@ -393,7 +391,6 @@ class Swarm(Service, INetworkService):
             muxed_conn,
             self,
         )
-        print("add_conn called")
         self.manager.run_task(muxed_conn.start)
         await muxed_conn.event_started.wait()
         self.manager.run_task(swarm_conn.start)
