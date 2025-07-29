@@ -96,7 +96,7 @@ async def run(port: int, destination: str, use_varint_format: bool = True) -> No
             # Add a custom handler to show connection events
             async def custom_identify_handler(stream):
                 peer_id = stream.muxed_conn.peer_id
-                print(f"\n🔗 Received identify request from peer: {peer_id}")
+                print(f"\n🔗 Custom Received identify request from peer: {peer_id}")
 
                 # Show remote address in multiaddr format
                 try:
