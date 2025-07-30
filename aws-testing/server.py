@@ -23,7 +23,7 @@ PING_PROTOCOL_ID = TProtocol("/ipfs/ping/1.0.0")
 PING_LENGTH = 32
 RESP_TIMEOUT = 60
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-SERVER_ADDR_LOG = os.path.join(SCRIPT_DIR, "server_node_addr.txt")
+SERVER_ADDR_LOG = os.path.join(SCRIPT_DIR, "server_node_addr.log")
 
 logger = logging.getLogger("kademlia-example")
 logging.disable(logging.CRITICAL)

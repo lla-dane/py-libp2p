@@ -26,7 +26,7 @@ logging.disable(logging.CRITICAL)
 PING_PROTOCOL_ID = TProtocol("/ipfs/ping/1.0.0")
 NUM_CLIENTS = 5
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-SERVER_ADDR_LOG = os.path.join(SCRIPT_DIR, "server_node_addr.txt")
+SERVER_ADDR_LOG = os.path.join(SCRIPT_DIR, "server_node_addr.log")
 FAILURE_LOG_FILE = os.path.join(SCRIPT_DIR, "client_failures.log")
 GET_VALUE_LATENCY_LOG = os.path.join(SCRIPT_DIR, "get_value_latency.log")
 FIND_PROVIDERS_LATENCY_LOG = os.path.join(SCRIPT_DIR, "find_providers_latency.log")
