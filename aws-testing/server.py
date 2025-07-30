@@ -95,7 +95,7 @@ async def run() -> None:
             f"python client.py -d /ip4/0.0.0.0/tcp/8000/p2p/{host.get_id()} -p 10"
         )  # Local
         print(
-            f"python client.py -d /ip4/15.188.49.159/tcp/8000/p2p/{host.get_id()} -p 10"
+            f"python client.py -d /ip4/15.188.49.159/tcp/8000/p2p/{host.get_id()} -b /ip4/15.188.49.159/tcp/8000/p2p/{host.get_id()} -p 10"
         )  # AWS EC2 instance
         await trio.sleep_forever()
 

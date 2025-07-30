@@ -190,7 +190,7 @@ async def run_single_client_identify(destination: str) -> None:
             log_failure(err_msg)
 
 
-async def run(destination: str, peer_count: int) -> None:
+async def run(destination: str, peer_count: int, bootstrap: str = None) -> None:
     if os.path.exists(FAILURE_LOG_FILE):
         os.remove(FAILURE_LOG_FILE)
 
@@ -198,7 +198,7 @@ async def run(destination: str, peer_count: int) -> None:
         for i in range(peer_count):
             nursery.start_soon(run_single_client_ping, destination)
             nursery.start_soon(run_single_client_identify, destination)
-            nursery.start_soon(run_single_client_dht, destination)
+            nursery.start_soon(run_single_client_dht, destination, bootstrap)
 
     # This block only runs AFTER all nursery tasks finish
     if os.path.exists(FAILURE_LOG_FILE):
@@ -235,6 +235,14 @@ def main():
         type=int,
         required=False,
         default=NUM_CLIENTS,
+        help="Destination multiaddr (/ip4/127.0.0.1/tcp/8000/p2p/...)",
+    )
+    
+    parser.add_argument(
+        "-b",
+        "--bootstrap",
+        type=str,
+        required=False,
         help="Destination multiaddr (/ip4/127.0.0.1/tcp/8000/p2p/...)",
     )
     args = parser.parse_args()
