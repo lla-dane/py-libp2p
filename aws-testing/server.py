@@ -3,6 +3,7 @@ import os
 
 import multiaddr
 from ping import handle_ping
+from pubsub import setup_pubsub, PUBSUB_TOPIC
 import trio
 
 from libp2p import (
@@ -64,6 +65,31 @@ async def run_dht_service(dht: KadDHT) -> None:
         await trio.sleep_forever()
 
 
+async def run_pubsub_service(pubsub, router) -> None:
+    async with background_trio_service(pubsub):
+        async with background_trio_service(router):
+            await pubsub.wait_until_ready()
+            logger.info("Pubsub service started in server mode")
+            
+            # Subscribe to the benchmark topic to participate in the network
+            subscription = await pubsub.subscribe(PUBSUB_TOPIC)
+            logger.info(f"Subscribed to topic: {PUBSUB_TOPIC}")
+            
+            print("PUBSUB SETUP COMPLETE...")
+            
+            # Just listen and log incoming messages (no echoing)
+            while True:
+                try:
+                    message = await subscription.get()
+                    peer_id = message.from_id
+                    data = message.data.decode('utf-8')
+                    logger.info(f"Received pubsub message from {peer_id.hex()[:8]}: {data}")
+                    
+                except Exception as e:
+                    logger.error(f"Error in pubsub message handling: {e}")
+                    await trio.sleep(1)
+
+
 async def run() -> None:
     listen_addr = multiaddr.Multiaddr("/ip4/0.0.0.0/tcp/8000")
     host = new_host(listen_addrs=[listen_addr])
@@ -81,6 +107,11 @@ async def run() -> None:
 
         nursery.start_soon(run_dht_service, dht)
         await trio.sleep(2)
+
+        # Pubsub
+        pubsub, router = setup_pubsub(host, use_gossipsub=True)
+        nursery.start_soon(run_pubsub_service, pubsub, router)
+        await trio.sleep(1)
 
         # Ping
         host.set_stream_handler(PING_PROTOCOL_ID, handle_ping)

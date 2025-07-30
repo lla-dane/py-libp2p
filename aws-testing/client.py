@@ -5,6 +5,7 @@ import os
 import base58
 import multiaddr
 from ping import send_ping
+from pubsub import setup_pubsub, PUBSUB_TOPIC
 import trio
 
 from examples.kademlia.kademlia import connect_to_bootstrap_nodes
@@ -30,6 +31,7 @@ SERVER_ADDR_LOG = os.path.join(SCRIPT_DIR, "server_node_addr.log")
 FAILURE_LOG_FILE = os.path.join(SCRIPT_DIR, "client_failures.log")
 GET_VALUE_LATENCY_LOG = os.path.join(SCRIPT_DIR, "get_value_latency.log")
 FIND_PROVIDERS_LATENCY_LOG = os.path.join(SCRIPT_DIR, "find_providers_latency.log")
+PUBSUB_LATENCY_LOG = os.path.join(SCRIPT_DIR, "pubsub_latency.log")
 
 
 def log_failure(message: str) -> None:
@@ -190,6 +192,54 @@ async def run_single_client_identify(destination: str) -> None:
             log_failure(err_msg)
 
 
+async def run_single_client_pubsub(destination: str) -> None:
+    listen_addr = multiaddr.Multiaddr("/ip4/0.0.0.0/tcp/0")
+    host = new_host(listen_addrs=[listen_addr])
+
+    async with host.run(listen_addrs=[listen_addr]):
+        try:
+            maddr = multiaddr.Multiaddr(destination)
+            info = info_from_p2p_addr(maddr)
+
+            await host.connect(info)
+            
+            # Set up pubsub
+            pubsub, router = setup_pubsub(host, use_gossipsub=True)
+            
+            from libp2p.tools.async_service.trio_service import background_trio_service
+            
+            # Measure just the setup time instead of publishing
+            start = trio.current_time()
+            
+            async with background_trio_service(pubsub), background_trio_service(router):
+                await pubsub.wait_until_ready()
+                
+                # Subscribe to the topic (to be part of the pubsub network)
+                subscription = await pubsub.subscribe(PUBSUB_TOPIC)
+                
+                # Wait for subscription to propagate
+                await trio.sleep(0.5)
+                
+                end = trio.current_time()
+                
+                setup_latency = end - start
+                setup_latency_ms = int(setup_latency * 1000)
+                
+                print("PUBSUB SUCCESS")
+                log_latency(PUBSUB_LATENCY_LOG, setup_latency_ms)
+                
+                # Brief wait before cleanup
+                await trio.sleep(0.1)
+                        
+        except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"[Pubsub Client Error: {e}")
+            print(f"Full traceback: {error_details}")
+            err_msg = f"[Pubsub Error] Could not connect or test pubsub with {destination}: {str(e)}"
+            log_failure(err_msg)
+
+
 async def run(destination: str, peer_count: int, bootstrap: str = None) -> None:
     if os.path.exists(FAILURE_LOG_FILE):
         os.remove(FAILURE_LOG_FILE)
@@ -198,9 +248,10 @@ async def run(destination: str, peer_count: int, bootstrap: str = None) -> None:
 
     async with trio.open_nursery() as nursery:
         for i in range(peer_count):
-            nursery.start_soon(run_single_client_ping, destination)
-            nursery.start_soon(run_single_client_identify, destination)
-            nursery.start_soon(run_single_client_dht, destination, bootstrap)
+            # nursery.start_soon(run_single_client_ping, destination)
+            # nursery.start_soon(run_single_client_identify, destination)
+            # nursery.start_soon(run_single_client_dht, destination, bootstrap)
+            nursery.start_soon(run_single_client_pubsub, destination)
 
     # This block only runs AFTER all nursery tasks finish
     if os.path.exists(FAILURE_LOG_FILE):
@@ -215,13 +266,15 @@ async def run(destination: str, peer_count: int, bootstrap: str = None) -> None:
     # Compute and print average latencies
     avg_get = compute_average_latency(GET_VALUE_LATENCY_LOG)
     avg_find = compute_average_latency(FIND_PROVIDERS_LATENCY_LOG)
+    avg_pubsub = compute_average_latency(PUBSUB_LATENCY_LOG)
 
     print(f"\n📊 Averaged over {peer_count} peers:")
     print(f"➡️  Average get_value latency: {avg_get:.2f} ms")
-    print(f"➡️  Average find_providers latency: {avg_find:.2f} ms\n")
+    print(f"➡️  Average find_providers latency: {avg_find:.2f} ms")
+    print(f"➡️  Average pubsub latency: {avg_pubsub:.2f} ms\n")
     
     total_duration = trio.current_time() - start_time
-    print(f"⏲️  Total run time: {total_duration:.2f} seconds, for {peer_count*3} peers")
+    print(f"⏲️  Total run time: {total_duration:.2f} seconds, for {peer_count*4} peers")
 
 
 def main():
@@ -253,7 +306,7 @@ def main():
     args = parser.parse_args()
 
     try:
-        trio.run(run, args.destination, args.peer_count)
+        trio.run(run, args.destination, args.peer_count, args.bootstrap)
     except KeyboardInterrupt:
         pass
 
