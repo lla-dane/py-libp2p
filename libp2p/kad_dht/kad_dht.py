@@ -516,12 +516,12 @@ class KadDHT(Service):
         logger.info(f"Successfully stored value at {stored_count} peers")
 
     async def get_value(self, key: bytes) -> bytes | None:
-        logger.debug(f"Getting value for key: {key.hex()}")
+        logger.info(f"Getting value for key: {key.hex()}")
 
         # 1. Check local store first
         value = self.value_store.get(key)
         if value:
-            logger.debug("Found value locally")
+            logger.info("Found value locally")
             return value
 
         # 2. Get closest peers, excluding self
@@ -530,7 +530,7 @@ class KadDHT(Service):
             for peer in self.routing_table.find_local_closest_peers(key)
             if peer != self.local_peer_id
         ]
-        logger.debug(f"Searching {len(closest_peers)} peers for value")
+        logger.info(f"Searching {len(closest_peers)} peers for value")
 
         # 3. Query ALPHA peers at a time in parallel
         for i in range(0, len(closest_peers), ALPHA):
@@ -544,7 +544,7 @@ class KadDHT(Service):
                         value = await self.value_store._get_from_peer(peer, key)
                         if value is not None and found_value is None:
                             found_value = value
-                            logger.debug(f"Found value at peer {peer}")
+                            logger.info(f"Found value at peer {peer}")
                 except Exception as e:
                     logger.debug(f"Error querying peer {peer}: {e}")
 
