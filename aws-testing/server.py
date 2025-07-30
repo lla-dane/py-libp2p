@@ -1,11 +1,10 @@
+import argparse
 import logging
 import os
 
 import multiaddr
 from ping import handle_ping
 import trio
-import argparse
-
 
 from libp2p import (
     new_host,
@@ -21,8 +20,6 @@ from libp2p.kad_dht.kad_dht import DHTMode, KadDHT
 from libp2p.kad_dht.utils import create_key_from_binary
 from libp2p.tools.async_service.trio_service import background_trio_service
 from libp2p.transport.quic.utils import create_quic_multiaddr
-
-
 
 PING_PROTOCOL_ID = TProtocol("/ipfs/ping/1.0.0")
 PING_LENGTH = 32
@@ -70,7 +67,6 @@ async def run_dht_service(dht: KadDHT) -> None:
 
 
 async def run(transport: str) -> None:
-    
     if transport == "tcp":
         listen_addr = multiaddr.Multiaddr("/ip4/0.0.0.0/tcp/8000")
     else:
@@ -100,21 +96,17 @@ async def run(transport: str) -> None:
         identify_handler = identify_handler_for(host, False)
         host.set_stream_handler(IDENTIFY_PROTOCOL_ID, identify_handler)
         print("IDENTIFY SETUP COMPLETE...")
-        
+
         if transport == "tcp":
+            print(f"python client.py -d {host.get_addrs()[0]} -p 10 -s 10")  # Local
             print(
-            f"python client.py -d {host.get_addrs()[0]} -p 10"
-            )  # Local
-            print(
-                f"python client.py -d /ip4/15.188.49.159/tcp/8000/p2p/{host.get_id()} -b /ip4/15.188.49.159/tcp/8000/p2p/{host.get_id()} -p 10"
+                f"python client.py -d /ip4/15.188.49.159/tcp/8000/p2p/{host.get_id()} -b /ip4/15.188.49.159/tcp/8000/p2p/{host.get_id()} -p 10 -s 10"
             )  # AWS EC2 instance
         else:
+            print(f"python client.py -t 1 -d {host.get_addrs()[0]} -p 10 -s 10")  # Local
             print(
-            f"python client.py -t 1 -d {host.get_addrs()[0]} -p 10"
-            )  # Local
-            print(
-                f"python client.py -t 1 -d /ip4/15.188.49.159/udp/8000/quic/p2p/{host.get_id()} -b /ip4/15.188.49.159/udp/8000/quic/p2p/{host.get_id()} -p 10"
-            ) 
+                f"python client.py -t 1 -d /ip4/15.188.49.159/udp/8000/quic/p2p/{host.get_id()} -b /ip4/15.188.49.159/udp/8000/quic/p2p/{host.get_id()} -p 10 -s 10"
+            )
         await trio.sleep_forever()
 
 
@@ -127,7 +119,7 @@ def main() -> None:
         default="tcp",
         help="Destination multiaddr (/ip4/127.0.0.1/tcp/8000/p2p/...)",
     )
-    
+
     args = parser.parse_args()
 
     try:

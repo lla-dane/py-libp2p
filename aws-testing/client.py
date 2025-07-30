@@ -20,18 +20,19 @@ from libp2p.peer.peerinfo import info_from_p2p_addr
 from libp2p.tools.async_service.trio_service import background_trio_service
 from libp2p.transport.quic.utils import create_quic_multiaddr
 
-
 logger = logging.getLogger("kademlia-example")
 logging.disable(logging.CRITICAL)
 
 
 PING_PROTOCOL_ID = TProtocol("/ipfs/ping/1.0.0")
 NUM_CLIENTS = 5
+NUM_STREAMS = 50
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SERVER_ADDR_LOG = os.path.join(SCRIPT_DIR, "server_node_addr.log")
 FAILURE_LOG_FILE = os.path.join(SCRIPT_DIR, "client_failures.log")
 GET_VALUE_LATENCY_LOG = os.path.join(SCRIPT_DIR, "get_value_latency.log")
 FIND_PROVIDERS_LATENCY_LOG = os.path.join(SCRIPT_DIR, "find_providers_latency.log")
+YAMUX_STRESS_LATENCY_LOG = os.path.join(SCRIPT_DIR, "yamux_stress_latency.log")
 
 
 def log_failure(message: str) -> None:
@@ -74,7 +75,9 @@ def load_server_addrs() -> list[str]:
         return []
 
 
-async def run_single_client_dht(destination: str, listen_addr: multiaddr.Multiaddr, bootstrap_addr: str = None) -> None:
+async def run_single_client_dht(
+    destination: str, listen_addr: multiaddr.Multiaddr, bootstrap_addr: str = None
+) -> None:
     bootstrap_nodes = []
 
     server_addrs = load_server_addrs()
@@ -87,7 +90,6 @@ async def run_single_client_dht(destination: str, listen_addr: multiaddr.Multiad
     if bootstrap_addr:
         bootstrap_nodes.append(bootstrap_addr)
 
-    listen_addr = multiaddr.Multiaddr("/ip4/0.0.0.0/tcp/0")
     host = new_host(listen_addrs=[listen_addr])
 
     async with host.run(listen_addrs=[listen_addr]):
@@ -144,14 +146,15 @@ async def run_single_client_dht(destination: str, listen_addr: multiaddr.Multiad
             print(f"Found {len(providers)} providers, latency_ms={find_latency_ms}ms")
 
 
-async def run_single_client_ping(destination: str, listen_addr: multiaddr.Multiaddr) -> None:
+async def run_single_client_ping(
+    destination: str, listen_addr: multiaddr.Multiaddr
+) -> None:
     host = new_host(listen_addrs=[listen_addr])
 
     async with host.run(listen_addrs=[listen_addr]):
         try:
             maddr = multiaddr.Multiaddr(destination)
             info = info_from_p2p_addr(maddr)
-
             await host.connect(info)
 
             stream = await host.new_stream(info.peer_id, [PING_PROTOCOL_ID])
@@ -163,8 +166,9 @@ async def run_single_client_ping(destination: str, listen_addr: multiaddr.Multia
             log_failure(err_msg)
 
 
-async def run_single_client_identify(destination: str, listen_addr: multiaddr.Multiaddr) -> None:
-    listen_addr = multiaddr.Multiaddr("ip4/0.0.0.0/tcp/0")
+async def run_single_client_identify(
+    destination: str, listen_addr: multiaddr.Multiaddr
+) -> None:
     host = new_host()
 
     async with host.run(listen_addrs=[listen_addr]):
@@ -191,15 +195,54 @@ async def run_single_client_identify(destination: str, listen_addr: multiaddr.Mu
             log_failure(err_msg)
 
 
-async def run(destination: str, peer_count: int, transport: int, bootstrap: str = None) -> None:
+async def run_single_client_yamux_stress(
+    destination: str, listen_addr: multiaddr.Multiaddr, streams: int
+) -> None:
+    latencies = []
+    host = new_host(listen_addrs=[listen_addr])
+    async with host.run(listen_addrs=[listen_addr]):
+        maddr = multiaddr.Multiaddr(destination)
+        info = info_from_p2p_addr(maddr)
+        await host.connect(info)
+
+        async def ping_stream(i: int):
+            try:
+                start = trio.current_time()
+                stream = await host.new_stream(info.peer_id, [PING_PROTOCOL_ID])
+                await send_ping(stream)
+                await stream.close()
+
+                latency_ms = int((trio.current_time() - start) * 1000)
+                latencies.append(latency_ms)
+                log_latency(YAMUX_STRESS_LATENCY_LOG, latency_ms)
+            except Exception as e:
+                err_msg = f"[Yamux Stress Ping #{i}] Error: {e}"
+                print(err_msg)
+                log_failure(err_msg)
+
+        async with trio.open_nursery() as nursery:
+            for i in range(streams):
+                nursery.start_soon(ping_stream, i)
+
+
+async def run(
+    destination: str,
+    peer_count: int,
+    transport: int,
+    streams: int,
+    bootstrap: str = None,
+) -> None:
     if os.path.exists(FAILURE_LOG_FILE):
         os.remove(FAILURE_LOG_FILE)
-        
+
     if os.path.exists(GET_VALUE_LATENCY_LOG):
         os.remove(GET_VALUE_LATENCY_LOG)
-        
+
     if os.path.exists(FIND_PROVIDERS_LATENCY_LOG):
         os.remove(FIND_PROVIDERS_LATENCY_LOG)
+
+    if os.path.exists(YAMUX_STRESS_LATENCY_LOG):
+        os.remove(YAMUX_STRESS_LATENCY_LOG)
 
     start_time = trio.current_time()  # ⏱️ Start timing
 
@@ -207,11 +250,14 @@ async def run(destination: str, peer_count: int, transport: int, bootstrap: str 
         listen_addr = multiaddr.Multiaddr("/ip4/0.0.0.0/tcp/0")
     else:
         listen_addr = create_quic_multiaddr("0.0.0.0", 0, "/quic")
-        
+
     async with trio.open_nursery() as nursery:
         for i in range(peer_count):
             nursery.start_soon(run_single_client_ping, destination, listen_addr)
             # nursery.start_soon(run_single_client_identify, destination, listen_addr)
+            # nursery.start_soon(
+            #     run_single_client_yamux_stress, destination, listen_addr, streams
+            # )
             # nursery.start_soon(run_single_client_dht, destination, listen_addr, bootstrap)
 
     # This block only runs AFTER all nursery tasks finish
@@ -227,13 +273,15 @@ async def run(destination: str, peer_count: int, transport: int, bootstrap: str 
     # Compute and print average latencies
     avg_get = compute_average_latency(GET_VALUE_LATENCY_LOG)
     avg_find = compute_average_latency(FIND_PROVIDERS_LATENCY_LOG)
+    avg_yamux = compute_average_latency(YAMUX_STRESS_LATENCY_LOG)
 
     print(f"\n📊 Averaged over {peer_count} peers:")
     print(f"➡️  Average get_value latency: {avg_get:.2f} ms")
     print(f"➡️  Average find_providers latency: {avg_find:.2f} ms\n")
-    
+    print(f"➡️  Average yamux stress ping latency: {avg_yamux:.2f} ms, with {streams} streams per peer \n")
+
     total_duration = trio.current_time() - start_time
-    print(f"⏲️  Total run time: {total_duration:.2f} seconds, for {peer_count*3} peers")
+    print(f"⏲️  Total run time: {total_duration:.2f} seconds, for {peer_count} peers")
 
 
 def main():
@@ -254,7 +302,7 @@ def main():
         default=NUM_CLIENTS,
         help="Destination multiaddr (/ip4/127.0.0.1/tcp/8000/p2p/...)",
     )
-    
+
     parser.add_argument(
         "-b",
         "--bootstrap",
@@ -262,7 +310,7 @@ def main():
         required=False,
         help="Destination multiaddr (/ip4/127.0.0.1/tcp/8000/p2p/...)",
     )
-    
+
     parser.add_argument(
         "-t",
         "--transport",
@@ -270,11 +318,19 @@ def main():
         default=0,
         help="Destination multiaddr (/ip4/127.0.0.1/tcp/8000/p2p/...)",
     )
-    
+
+    parser.add_argument(
+        "-s",
+        "--streams",
+        type=int,
+        default=1,
+        help="Destination multiaddr (/ip4/127.0.0.1/tcp/8000/p2p/...)",
+    )
+
     args = parser.parse_args()
 
     try:
-        trio.run(run, args.destination, args.peer_count, args.transport)
+        trio.run(run, args.destination, args.peer_count, args.transport, args.streams)
     except KeyboardInterrupt:
         pass
 

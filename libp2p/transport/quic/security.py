@@ -633,7 +633,7 @@ class PeerAuthenticator:
             # print(f"Extension type: {type(libp2p_extension)}")
             # print(f"Extension value type: {type(libp2p_extension.value)}")
             # if hasattr(libp2p_extension.value, "__len__"):
-                # print(f"Extension value length: {len(libp2p_extension.value)}")
+            # print(f"Extension value length: {len(libp2p_extension.value)}")
             # print(f"Extension value: {libp2p_extension.value}")
             # Parse the extension to get public key and signature
             public_key, signature = self.extension_handler.parse_signed_key_extension(
