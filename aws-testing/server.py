@@ -49,9 +49,7 @@ async def run_dht_service(dht: KadDHT) -> None:
         content_key = create_key_from_binary(b"DHT_content_key")
 
         # PUT_VALUE
-        # start = trio.current_time()
         await dht.put_value(val_key, val_in)
-        # put_latency = trio.current_time() - start
 
         # CONTENT SERVER
         success = await dht.provider_store.provide(content_key)
@@ -62,7 +60,7 @@ async def run_dht_service(dht: KadDHT) -> None:
         else:
             logger.warning("Failed to advertise as content server")
 
-        print("DHT SERVICE RUNNING")
+        print("DHT SETUP COMPLETE...")
         await trio.sleep_forever()
 
 
@@ -86,10 +84,12 @@ async def run() -> None:
 
         # Ping
         host.set_stream_handler(PING_PROTOCOL_ID, handle_ping)
+        print("PING SETUP COMPLETE...")
 
         # Identify
         identify_handler = identify_handler_for(host, False)
         host.set_stream_handler(IDENTIFY_PROTOCOL_ID, identify_handler)
+        print("IDENTIFY SETUP COMPLETE...")
 
         print(
             f"python client.py -d /ip4/0.0.0.0/tcp/8000/p2p/{host.get_id()} -p 10"

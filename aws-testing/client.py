@@ -27,6 +27,37 @@ PING_PROTOCOL_ID = TProtocol("/ipfs/ping/1.0.0")
 NUM_CLIENTS = 5
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 SERVER_ADDR_LOG = os.path.join(SCRIPT_DIR, "server_node_addr.txt")
+FAILURE_LOG_FILE = os.path.join(SCRIPT_DIR, "client_failures.log")
+GET_VALUE_LATENCY_LOG = os.path.join(SCRIPT_DIR, "get_value_latency.log")
+FIND_PROVIDERS_LATENCY_LOG = os.path.join(SCRIPT_DIR, "find_providers_latency.log")
+
+
+def log_failure(message: str) -> None:
+    try:
+        with open(FAILURE_LOG_FILE, "a") as f:
+            f.write(f"{message}\n")
+    except Exception as e:
+        print(f"Failed to log error: {e}")
+
+
+def log_latency(filepath: str, latency_ms: int) -> None:
+    try:
+        with open(filepath, "a") as f:
+            f.write(f"{latency_ms}\n")
+    except Exception as e:
+        print(f"Failed to log latency to {filepath}: {e}")
+
+
+def compute_average_latency(filepath: str) -> float:
+    if not os.path.exists(filepath):
+        return 0.0
+    try:
+        with open(filepath) as f:
+            values = [int(line.strip()) for line in f if line.strip()]
+        return sum(values) / len(values) if values else 0.0
+    except Exception as e:
+        print(f"Failed to compute average from {filepath}: {e}")
+        return 0.0
 
 
 def load_server_addrs() -> list[str]:
@@ -83,21 +114,32 @@ async def run_single_client_dht(destination: str, bootstrap_addr: str = None) ->
             start = trio.current_time()
             val_out = await dht.get_value(val_key)
             get_latency = trio.current_time() - start
+            get_latency_ms = int(get_latency * 1000)
 
             success = val_out == val_in
-            print(
-                f"\nDHT GET success={success} with latency:", {int(get_latency * 1000)}
-            )
+
+            if success is False:
+                log_failure(
+                    f"[DHT GET] Failed to retrieve correct value from {destination}"
+                )
+
+            log_latency(GET_VALUE_LATENCY_LOG, get_latency_ms)
+            print(f"DHT GET success={success} with latency: {get_latency_ms}ms")
 
             # FIND PROVIDERS
             logger.info("Looking for servers of content: ", content_key.hex())
             start = trio.current_time()
             providers = await dht.provider_store.find_providers(content_key)
             find_latency = trio.current_time() - start
+            find_latency_ms = int(find_latency * 1000)
 
-            print(
-                f"Found {len(providers)} providers, latency_ms={int(find_latency * 1000)}\n"
-            )
+            if len(providers) == 0:
+                log_failure(
+                    f"[DHT FIND_PROVIDERS] No providers found for content_key at {destination}"
+                )
+
+            log_latency(FIND_PROVIDERS_LATENCY_LOG, find_latency_ms)
+            print(f"Found {len(providers)} providers, latency_ms={find_latency_ms}ms")
 
 
 async def run_single_client_ping(destination: str) -> None:
@@ -116,6 +158,8 @@ async def run_single_client_ping(destination: str) -> None:
 
         except Exception as e:
             print(f"[Client Error: {e}")
+            err_msg = f"[Ping Error] Could not connect or ping {destination}: {str(e)}"
+            log_failure(err_msg)
 
 
 async def run_single_client_identify(destination: str) -> None:
@@ -142,15 +186,37 @@ async def run_single_client_identify(destination: str) -> None:
             print("IDENTIFY SUCCESS")
         except Exception as e:
             print(f"Identify protocol error: {str(e)}")
+            err_msg = f"[Identify Error] Could not identify {destination}: {str(e)}"
+            log_failure(err_msg)
 
 
 async def run(destination: str, peer_count: int) -> None:
+    if os.path.exists(FAILURE_LOG_FILE):
+        os.remove(FAILURE_LOG_FILE)
+
     async with trio.open_nursery() as nursery:
         for i in range(peer_count):
-            # nursery.start_soon(run_single_client_ping, destination)
-            # nursery.start_soon(run_single_client_identify, destination)
+            nursery.start_soon(run_single_client_ping, destination)
+            nursery.start_soon(run_single_client_identify, destination)
             nursery.start_soon(run_single_client_dht, destination)
-        # sleep to let all clients finish before nursery closes
+
+    # This block only runs AFTER all nursery tasks finish
+    if os.path.exists(FAILURE_LOG_FILE):
+        print("\n=== CLIENT FAILURES ===")
+        with open(FAILURE_LOG_FILE) as f:
+            for line in f:
+                print(line.strip())
+        print("========================\n")
+    else:
+        print("\n✅ All client operations succeeded.\n")
+
+    # Compute and print average latencies
+    avg_get = compute_average_latency(GET_VALUE_LATENCY_LOG)
+    avg_find = compute_average_latency(FIND_PROVIDERS_LATENCY_LOG)
+
+    print(f"\n📊 Averaged over {peer_count} peers:")
+    print(f"➡️  Average get_value latency: {avg_get:.2f} ms")
+    print(f"➡️  Average find_providers latency: {avg_find:.2f} ms\n")
 
 
 def main():
