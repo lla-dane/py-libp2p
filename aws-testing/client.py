@@ -221,7 +221,7 @@ async def run(destination: str, peer_count: int, bootstrap: str = None) -> None:
     print(f"➡️  Average find_providers latency: {avg_find:.2f} ms\n")
     
     total_duration = trio.current_time() - start_time
-    print(f"⏲️  Total run time: {total_duration:.2f} seconds, for {peer_count} peers")
+    print(f"⏲️  Total run time: {total_duration:.2f} seconds, for {peer_count*3} peers")
 
 
 def main():
