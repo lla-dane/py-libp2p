@@ -1,0 +1,103 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "libp2p Ping Metrics",
+    "tags": ["libp2p", "ping"],
+    "style": "dark",
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Ping Requests per Second",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(libp2p_ping_requests_total[5m])",
+            "legendFormat": "{{peer_id}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Ping Success Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(libp2p_ping_responses_total[5m]) / rate(libp2p_ping_requests_total[5m]) * 100",
+            "legendFormat": "Success Rate %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Ping Errors by Type",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(libp2p_ping_errors_total[5m])",
+            "legendFormat": "{{error_type}} - {{peer_id}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps"
+          }
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Round Trip Time (95th percentile)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(libp2p_ping_rtt_microseconds_bucket[5m]))",
+            "legendFormat": "95th percentile - {{peer_id}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "µs"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+      },
+      {
+        "id": 5,
+        "title": "Active Pings",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "libp2p_active_pings",
+            "legendFormat": "{{peer_id}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+      }
+    ],
+    "time": {
+      "from": "now-5m",
+      "to": "now"
+    },
+    "refresh": "5s"
+  }
+} 

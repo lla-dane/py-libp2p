@@ -1,0 +1,332 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "libp2p Multi-Peer Resource Monitoring (50+ Peers)",
+    "tags": ["libp2p", "multi-peer", "stress-test"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Concurrent Peer Connections",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "libp2p_concurrent_peers",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 30},
+                {"color": "red", "value": 80}
+              ]
+            },
+            "unit": "short"
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Connection Pool Utilization",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "libp2p_connection_pool_utilization * 100",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 60},
+                {"color": "red", "value": 85}
+              ]
+            },
+            "unit": "percent",
+            "min": 0,
+            "max": 100
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Memory Usage per Peer",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "libp2p_memory_per_peer_bytes / 1024 / 1024",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 10},
+                {"color": "red", "value": 50}
+              ]
+            },
+            "unit": "decbytes"
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}
+      },
+      {
+        "id": 4,
+        "title": "Total Memory Usage",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "libp2p_memory_rss_bytes / 1024 / 1024",
+            "refId": "A",
+            "legendFormat": "RSS Memory"
+          },
+          {
+            "expr": "libp2p_memory_vms_bytes / 1024 / 1024",
+            "refId": "B",
+            "legendFormat": "VMS Memory"
+          },
+          {
+            "expr": "libp2p_memory_peak_bytes / 1024 / 1024",
+            "refId": "C",
+            "legendFormat": "Peak Memory"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "unit": "decbytes"
+          }
+        },
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+      },
+      {
+        "id": 5,
+        "title": "Peer Connection Rate",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(libp2p_resource_allocations_total{resource_type=\"peer_connection\"}[1m])",
+            "refId": "A",
+            "legendFormat": "Connections/sec"
+          },
+          {
+            "expr": "rate(libp2p_resource_deallocations_total{resource_type=\"peer_connection\"}[1m])",
+            "refId": "B",
+            "legendFormat": "Disconnections/sec"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "unit": "reqps"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 6,
+        "title": "Connection Duration Distribution",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(libp2p_peer_connection_duration_seconds_bucket[5m]))",
+            "refId": "A",
+            "legendFormat": "50th percentile"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(libp2p_peer_connection_duration_seconds_bucket[5m]))",
+            "refId": "B",
+            "legendFormat": "95th percentile"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(libp2p_peer_connection_duration_seconds_bucket[5m]))",
+            "refId": "C",
+            "legendFormat": "99th percentile"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "unit": "s"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 7,
+        "title": "System Performance Under Load",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "libp2p_cpu_usage_percent",
+            "refId": "A",
+            "legendFormat": "CPU Usage %"
+          },
+          {
+            "expr": "libp2p_thread_count",
+            "refId": "B",
+            "legendFormat": "Thread Count"
+          },
+          {
+            "expr": "libp2p_fd_count",
+            "refId": "C",
+            "legendFormat": "File Descriptors"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+      },
+      {
+        "id": 8,
+        "title": "Network Bandwidth per Peer",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "rate(libp2p_io_read_bytes_total[1m]) / libp2p_concurrent_peers",
+            "refId": "A",
+            "legendFormat": "Read bytes/peer/sec"
+          },
+          {
+            "expr": "rate(libp2p_io_write_bytes_total[1m]) / libp2p_concurrent_peers",
+            "refId": "B",
+            "legendFormat": "Write bytes/peer/sec"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "unit": "Bps"
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+      },
+      {
+        "id": 9,
+        "title": "Resource Efficiency Metrics",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "libp2p_memory_rss_bytes / libp2p_concurrent_peers / 1024 / 1024",
+            "refId": "A",
+            "legendFormat": "Memory per Peer (MB)"
+          },
+          {
+            "expr": "libp2p_fd_count / libp2p_concurrent_peers",
+            "refId": "B",
+            "legendFormat": "FDs per Peer"
+          },
+          {
+            "expr": "libp2p_cpu_usage_percent / libp2p_concurrent_peers",
+            "refId": "C",
+            "legendFormat": "CPU % per Peer"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+      },
+      {
+        "id": 10,
+        "title": "Ping Performance Under Load",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(libp2p_ping_rtt_seconds_bucket[5m])) * 1000000",
+            "refId": "A",
+            "legendFormat": "95th percentile RTT (μs)"
+          },
+          {
+            "expr": "rate(libp2p_ping_requests_total[1m])",
+            "refId": "B",
+            "legendFormat": "Ping Rate (req/sec)"
+          },
+          {
+            "expr": "rate(libp2p_ping_errors_total[1m]) / rate(libp2p_ping_requests_total[1m]) * 100",
+            "refId": "C",
+            "legendFormat": "Error Rate %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+      },
+      {
+        "id": 11,
+        "title": "Memory Allocation Patterns",
+        "type": "timeseries",
+        "targets": [
+          {
+            "expr": "libp2p_memory_tracemalloc_bytes / 1024 / 1024",
+            "refId": "A",
+            "legendFormat": "Tracemalloc Current (MB)"
+          },
+          {
+            "expr": "libp2p_memory_tracemalloc_peak_bytes / 1024 / 1024",
+            "refId": "B",
+            "legendFormat": "Tracemalloc Peak (MB)"
+          },
+          {
+            "expr": "rate(libp2p_gc_collections_total[1m])",
+            "refId": "C",
+            "legendFormat": "GC Collections/sec"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            }
+          }
+        },
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 32}
+      }
+    ],
+    "time": {
+      "from": "now-15m",
+      "to": "now"
+    },
+    "refresh": "5s"
+  }
+} 

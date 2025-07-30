@@ -1,0 +1,207 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "🔍 libp2p Resource Monitoring",
+    "tags": ["libp2p", "resources", "performance", "monitoring"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "💾 Memory Usage (RSS)",
+        "type": "timeseries",
+        "targets": [
+          {
+            "datasource": {"type": "prometheus", "uid": "eeth22n71nda8c"},
+            "expr": "libp2p_memory_rss_bytes / 1024 / 1024",
+            "legendFormat": "RSS Memory (MB)"
+          },
+          {
+            "datasource": {"type": "prometheus", "uid": "eeth22n71nda8c"},
+            "expr": "libp2p_memory_peak_bytes / 1024 / 1024",
+            "legendFormat": "Peak Memory (MB)"
+          }
+        ],
+        "fieldConfig": {"defaults": {"unit": "MB"}},
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "🧠 CPU Usage",
+        "type": "timeseries",
+        "targets": [
+          {
+            "datasource": {"type": "prometheus", "uid": "eeth22n71nda8c"},
+            "expr": "libp2p_cpu_percent_current",
+            "legendFormat": "CPU %"
+          },
+          {
+            "datasource": {"type": "prometheus", "uid": "eeth22n71nda8c"},
+            "expr": "rate(libp2p_cpu_user_time_seconds[5m]) * 100",
+            "legendFormat": "User Time %"
+          },
+          {
+            "datasource": {"type": "prometheus", "uid": "eeth22n71nda8c"},
+            "expr": "rate(libp2p_cpu_system_time_seconds[5m]) * 100",
+            "legendFormat": "System Time %"
+          }
+        ],
+        "fieldConfig": {"defaults": {"unit": "percent"}},
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "🔍 Tracemalloc Memory",
+        "type": "timeseries",
+        "targets": [
+          {
+            "datasource": {"type": "prometheus", "uid": "eeth22n71nda8c"},
+            "expr": "libp2p_memory_tracemalloc_bytes / 1024 / 1024",
+            "legendFormat": "Current (MB)"
+          },
+          {
+            "datasource": {"type": "prometheus", "uid": "eeth22n71nda8c"},
+            "expr": "libp2p_memory_tracemalloc_peak_bytes / 1024 / 1024",
+            "legendFormat": "Peak (MB)"
+          }
+        ],
+        "fieldConfig": {"defaults": {"unit": "MB"}},
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "🧵 Threads & File Descriptors",
+        "type": "timeseries",
+        "targets": [
+          {
+            "datasource": {"type": "prometheus", "uid": "eeth22n71nda8c"},
+            "expr": "libp2p_thread_count",
+            "legendFormat": "Thread Count"
+          },
+          {
+            "datasource": {"type": "prometheus", "uid": "eeth22n71nda8c"},
+            "expr": "libp2p_file_descriptors",
+            "legendFormat": "File Descriptors"
+          }
+        ],
+        "fieldConfig": {"defaults": {"unit": "short"}},
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+      },
+      {
+        "id": 5,
+        "title": "🌐 Socket Connections",
+        "type": "timeseries",
+        "targets": [
+          {
+            "datasource": {"type": "prometheus", "uid": "eeth22n71nda8c"},
+            "expr": "libp2p_socket_count",
+            "legendFormat": "{{family}}/{{type}}"
+          }
+        ],
+        "fieldConfig": {"defaults": {"unit": "short"}},
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+      },
+      {
+        "id": 6,
+        "title": "💿 I/O Operations",
+        "type": "timeseries",
+        "targets": [
+          {
+            "datasource": {"type": "prometheus", "uid": "eeth22n71nda8c"},
+            "expr": "rate(libp2p_io_read_bytes_total[5m])",
+            "legendFormat": "Read Bytes/s"
+          },
+          {
+            "datasource": {"type": "prometheus", "uid": "eeth22n71nda8c"},
+            "expr": "rate(libp2p_io_write_bytes_total[5m])",
+            "legendFormat": "Write Bytes/s"
+          }
+        ],
+        "fieldConfig": {"defaults": {"unit": "Bps"}},
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+      },
+      {
+        "id": 7,
+        "title": "🔄 Context Switches",
+        "type": "timeseries",
+        "targets": [
+          {
+            "datasource": {"type": "prometheus", "uid": "eeth22n71nda8c"},
+            "expr": "rate(libp2p_context_switches_voluntary_total[5m])",
+            "legendFormat": "Voluntary/s"
+          },
+          {
+            "datasource": {"type": "prometheus", "uid": "eeth22n71nda8c"},
+            "expr": "rate(libp2p_context_switches_involuntary_total[5m])",
+            "legendFormat": "Involuntary/s"
+          }
+        ],
+        "fieldConfig": {"defaults": {"unit": "ops"}},
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24}
+      },
+      {
+        "id": 8,
+        "title": "📦 Resource Allocations",
+        "type": "timeseries",
+        "targets": [
+          {
+            "datasource": {"type": "prometheus", "uid": "eeth22n71nda8c"},
+            "expr": "libp2p_active_resources",
+            "legendFormat": "Active {{resource_type}}"
+          }
+        ],
+        "fieldConfig": {"defaults": {"unit": "short"}},
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24}
+      },
+      {
+        "id": 9,
+        "title": "📊 Resource Allocation Rate",
+        "type": "timeseries", 
+        "targets": [
+          {
+            "datasource": {"type": "prometheus", "uid": "eeth22n71nda8c"},
+            "expr": "rate(libp2p_resource_allocations_total[5m])",
+            "legendFormat": "Allocations/s - {{resource_type}}"
+          },
+          {
+            "datasource": {"type": "prometheus", "uid": "eeth22n71nda8c"},
+            "expr": "rate(libp2p_resource_deallocations_total[5m])",
+            "legendFormat": "Deallocations/s - {{resource_type}}"
+          }
+        ],
+        "fieldConfig": {"defaults": {"unit": "ops"}},
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 32}
+      },
+      {
+        "id": 10,
+        "title": "📈 Memory Efficiency Stats",
+        "type": "stat",
+        "targets": [
+          {
+            "datasource": {"type": "prometheus", "uid": "eeth22n71nda8c"},
+            "expr": "libp2p_memory_rss_bytes / 1024 / 1024",
+            "legendFormat": "Current RSS (MB)"
+          },
+          {
+            "datasource": {"type": "prometheus", "uid": "eeth22n71nda8c"},
+            "expr": "libp2p_memory_peak_bytes / 1024 / 1024",
+            "legendFormat": "Peak RSS (MB)"
+          },
+          {
+            "datasource": {"type": "prometheus", "uid": "eeth22n71nda8c"},
+            "expr": "libp2p_file_descriptors",
+            "legendFormat": "File Descriptors"
+          },
+          {
+            "datasource": {"type": "prometheus", "uid": "eeth22n71nda8c"},
+            "expr": "libp2p_thread_count",
+            "legendFormat": "Threads"
+          }
+        ],
+        "fieldConfig": {"defaults": {"unit": "short"}},
+        "gridPos": {"h": 6, "w": 24, "x": 0, "y": 40}
+      }
+    ],
+    "time": {"from": "now-10m", "to": "now"},
+    "refresh": "2s"
+  }
+} 
