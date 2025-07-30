@@ -114,12 +114,12 @@ class QUICTransport(ITransport):
 
         self._swarm: Swarm | None = None
 
-        print(f"Initialized QUIC transport with security for peer {self._peer_id}")
+        # print(f"Initialized QUIC transport with security for peer {self._peer_id}")
 
     def set_background_nursery(self, nursery: trio.Nursery) -> None:
         """Set the nursery to use for background tasks (called by swarm)."""
         self._background_nursery = nursery
-        print("Transport background nursery set")
+        # print("Transport background nursery set")
 
     def set_swarm(self, swarm: Swarm) -> None:
         """Set the swarm for adding incoming connections."""
@@ -196,7 +196,7 @@ class QUICTransport(ITransport):
                     draft29_client_config
                 )
 
-            print("QUIC configurations initialized with libp2p TLS security")
+            # print("QUIC configurations initialized with libp2p TLS security")
 
         except Exception as e:
             raise QUICSecurityError(
@@ -221,7 +221,7 @@ class QUICTransport(ITransport):
             config.alpn_protocols = tls_config.alpn_protocols
             config.verify_mode = ssl.CERT_NONE
 
-            print("Successfully applied TLS configuration to QUIC config")
+            # print("Successfully applied TLS configuration to QUIC config")
 
         except Exception as e:
             raise QUICSecurityError(f"Failed to apply TLS configuration: {e}") from e
@@ -259,7 +259,7 @@ class QUICTransport(ITransport):
 
             # Get appropriate QUIC client configuration
             config_key = TProtocol(f"{quic_version}_client")
-            print("config_key", config_key, self._quic_configs.keys())
+            # print("config_key", config_key, self._quic_configs.keys())
             config = self._quic_configs.get(config_key)
             if not config:
                 raise QUICDialError(f"Unsupported QUIC version: {quic_version}")
@@ -295,7 +295,7 @@ class QUICTransport(ITransport):
                 transport=self,
                 security_manager=self._security_manager,
             )
-            print("QUIC Connection Created")
+            # print("QUIC Connection Created")
 
             if self._background_nursery is None:
                 logger.error("No nursery set to execute background tasks")
@@ -384,7 +384,7 @@ class QUICTransport(ITransport):
         )
 
         self._listeners.append(listener)
-        print("Created QUIC listener with security")
+        # print("Created QUIC listener with security")
         return listener
 
     def can_dial(self, maddr: multiaddr.Multiaddr) -> bool:

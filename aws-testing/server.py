@@ -4,6 +4,8 @@ import os
 import multiaddr
 from ping import handle_ping
 import trio
+import argparse
+
 
 from libp2p import (
     new_host,
@@ -18,6 +20,9 @@ from libp2p.identity.identify.identify import (
 from libp2p.kad_dht.kad_dht import DHTMode, KadDHT
 from libp2p.kad_dht.utils import create_key_from_binary
 from libp2p.tools.async_service.trio_service import background_trio_service
+from libp2p.transport.quic.utils import create_quic_multiaddr
+
+
 
 PING_PROTOCOL_ID = TProtocol("/ipfs/ping/1.0.0")
 PING_LENGTH = 32
@@ -64,15 +69,20 @@ async def run_dht_service(dht: KadDHT) -> None:
         await trio.sleep_forever()
 
 
-async def run() -> None:
-    listen_addr = multiaddr.Multiaddr("/ip4/0.0.0.0/tcp/8000")
+async def run(transport: str) -> None:
+    
+    if transport == "tcp":
+        listen_addr = multiaddr.Multiaddr("/ip4/0.0.0.0/tcp/8000")
+    else:
+        listen_addr = create_quic_multiaddr("0.0.0.0", 8000, "/quic")
+
     host = new_host(listen_addrs=[listen_addr])
 
     async with host.run(listen_addrs=[listen_addr]), trio.open_nursery() as nursery:
         nursery.start_soon(host.get_peerstore().start_cleanup_task, 60)
 
         # DHT
-        add_str = f"{listen_addr}/p2p/{host.get_id()}"
+        add_str = f"{host.get_addrs()[0]}"
         dht = KadDHT(host, DHTMode.SERVER)
 
         for peer_id in host.get_peerstore().peer_ids():
@@ -90,19 +100,38 @@ async def run() -> None:
         identify_handler = identify_handler_for(host, False)
         host.set_stream_handler(IDENTIFY_PROTOCOL_ID, identify_handler)
         print("IDENTIFY SETUP COMPLETE...")
-
-        print(
-            f"python client.py -d /ip4/0.0.0.0/tcp/8000/p2p/{host.get_id()} -p 10"
-        )  # Local
-        print(
-            f"python client.py -d /ip4/15.188.49.159/tcp/8000/p2p/{host.get_id()} -b /ip4/15.188.49.159/tcp/8000/p2p/{host.get_id()} -p 10"
-        )  # AWS EC2 instance
+        
+        if transport == "tcp":
+            print(
+            f"python client.py -d {host.get_addrs()[0]} -p 10"
+            )  # Local
+            print(
+                f"python client.py -d {host.get_addrs()[0]} -b /ip4/15.188.49.159/tcp/8000/p2p/{host.get_id()} -p 10"
+            )  # AWS EC2 instance
+        else:
+            print(
+            f"python client.py -t 1 -d {host.get_addrs()[0]} -p 10"
+            )  # Local
+            print(
+                f"python client.py -t 1 -d /ip4/15.188.49.159/udp/8000/quic/p2p/{host.get_id()} -b /ip4/15.188.49.159/udp/8000/quic/p2p/{host.get_id()} -p 10"
+            ) 
         await trio.sleep_forever()
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-t",
+        "--transport",
+        type=str,
+        default="tcp",
+        help="Destination multiaddr (/ip4/127.0.0.1/tcp/8000/p2p/...)",
+    )
+    
+    args = parser.parse_args()
+
     try:
-        trio.run(run)
+        trio.run(run, args.transport)
     except KeyboardInterrupt:
         pass
 

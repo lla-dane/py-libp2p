@@ -18,6 +18,8 @@ from libp2p.kad_dht.kad_dht import DHTMode, KadDHT
 from libp2p.kad_dht.utils import create_key_from_binary
 from libp2p.peer.peerinfo import info_from_p2p_addr
 from libp2p.tools.async_service.trio_service import background_trio_service
+from libp2p.transport.quic.utils import create_quic_multiaddr
+
 
 logger = logging.getLogger("kademlia-example")
 logging.disable(logging.CRITICAL)
@@ -72,7 +74,7 @@ def load_server_addrs() -> list[str]:
         return []
 
 
-async def run_single_client_dht(destination: str, bootstrap_addr: str = None) -> None:
+async def run_single_client_dht(destination: str, listen_addr: multiaddr.Multiaddr, bootstrap_addr: str = None) -> None:
     bootstrap_nodes = []
 
     server_addrs = load_server_addrs()
@@ -142,8 +144,7 @@ async def run_single_client_dht(destination: str, bootstrap_addr: str = None) ->
             print(f"Found {len(providers)} providers, latency_ms={find_latency_ms}ms")
 
 
-async def run_single_client_ping(destination: str) -> None:
-    listen_addr = multiaddr.Multiaddr("/ip4/0.0.0.0/tcp/0")
+async def run_single_client_ping(destination: str, listen_addr: multiaddr.Multiaddr) -> None:
     host = new_host(listen_addrs=[listen_addr])
 
     async with host.run(listen_addrs=[listen_addr]):
@@ -162,7 +163,7 @@ async def run_single_client_ping(destination: str) -> None:
             log_failure(err_msg)
 
 
-async def run_single_client_identify(destination: str) -> None:
+async def run_single_client_identify(destination: str, listen_addr: multiaddr.Multiaddr) -> None:
     listen_addr = multiaddr.Multiaddr("ip4/0.0.0.0/tcp/0")
     host = new_host()
 
@@ -190,17 +191,28 @@ async def run_single_client_identify(destination: str) -> None:
             log_failure(err_msg)
 
 
-async def run(destination: str, peer_count: int, bootstrap: str = None) -> None:
+async def run(destination: str, peer_count: int, transport: int, bootstrap: str = None) -> None:
     if os.path.exists(FAILURE_LOG_FILE):
         os.remove(FAILURE_LOG_FILE)
+        
+    if os.path.exists(GET_VALUE_LATENCY_LOG):
+        os.remove(GET_VALUE_LATENCY_LOG)
+        
+    if os.path.exists(FIND_PROVIDERS_LATENCY_LOG):
+        os.remove(FIND_PROVIDERS_LATENCY_LOG)
 
     start_time = trio.current_time()  # ⏱️ Start timing
 
+    if transport == 0:
+        listen_addr = multiaddr.Multiaddr("/ip4/0.0.0.0/tcp/0")
+    else:
+        listen_addr = create_quic_multiaddr("0.0.0.0", 0, "/quic")
+        
     async with trio.open_nursery() as nursery:
         for i in range(peer_count):
-            nursery.start_soon(run_single_client_ping, destination)
-            nursery.start_soon(run_single_client_identify, destination)
-            nursery.start_soon(run_single_client_dht, destination, bootstrap)
+            nursery.start_soon(run_single_client_ping, destination, listen_addr)
+            # nursery.start_soon(run_single_client_identify, destination, listen_addr)
+            # nursery.start_soon(run_single_client_dht, destination, listen_addr, bootstrap)
 
     # This block only runs AFTER all nursery tasks finish
     if os.path.exists(FAILURE_LOG_FILE):
@@ -250,10 +262,19 @@ def main():
         required=False,
         help="Destination multiaddr (/ip4/127.0.0.1/tcp/8000/p2p/...)",
     )
+    
+    parser.add_argument(
+        "-t",
+        "--transport",
+        type=int,
+        default=0,
+        help="Destination multiaddr (/ip4/127.0.0.1/tcp/8000/p2p/...)",
+    )
+    
     args = parser.parse_args()
 
     try:
-        trio.run(run, args.destination, args.peer_count)
+        trio.run(run, args.destination, args.peer_count, args.transport)
     except KeyboardInterrupt:
         pass
 
