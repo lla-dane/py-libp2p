@@ -103,7 +103,9 @@ async def run(transport: str) -> None:
                 f"python client.py -d /ip4/15.188.49.159/tcp/8000/p2p/{host.get_id()} -b /ip4/15.188.49.159/tcp/8000/p2p/{host.get_id()} -p 10 -s 10"
             )  # AWS EC2 instance
         else:
-            print(f"python client.py -t 1 -d {host.get_addrs()[0]} -p 10 -s 10")  # Local
+            print(
+                f"python client.py -t 1 -d {host.get_addrs()[0]} -p 10 -s 10"
+            )  # Local
             print(
                 f"python client.py -t 1 -d /ip4/15.188.49.159/udp/8000/quic/p2p/{host.get_id()} -b /ip4/15.188.49.159/udp/8000/quic/p2p/{host.get_id()} -p 10 -s 10"
             )

@@ -254,11 +254,13 @@ async def run(
     async with trio.open_nursery() as nursery:
         for i in range(peer_count):
             nursery.start_soon(run_single_client_ping, destination, listen_addr)
-            # nursery.start_soon(run_single_client_identify, destination, listen_addr)
-            # nursery.start_soon(
-            #     run_single_client_yamux_stress, destination, listen_addr, streams
-            # )
-            # nursery.start_soon(run_single_client_dht, destination, listen_addr, bootstrap)
+            nursery.start_soon(run_single_client_identify, destination, listen_addr)
+            nursery.start_soon(
+                run_single_client_yamux_stress, destination, listen_addr, streams
+            )
+            nursery.start_soon(
+                run_single_client_dht, destination, listen_addr, bootstrap
+            )
 
     # This block only runs AFTER all nursery tasks finish
     if os.path.exists(FAILURE_LOG_FILE):
@@ -278,7 +280,9 @@ async def run(
     print(f"\n📊 Averaged over {peer_count} peers:")
     print(f"➡️  Average get_value latency: {avg_get:.2f} ms")
     print(f"➡️  Average find_providers latency: {avg_find:.2f} ms\n")
-    print(f"➡️  Average yamux stress ping latency: {avg_yamux:.2f} ms, with {streams} streams per peer \n")
+    print(
+        f"➡️  Average yamux stress ping latency: {avg_yamux:.2f} ms, with {streams} streams per peer \n"
+    )
 
     total_duration = trio.current_time() - start_time
     print(f"⏲️  Total run time: {total_duration:.2f} seconds, for {peer_count} peers")
