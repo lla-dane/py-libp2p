@@ -254,13 +254,13 @@ async def run(
     async with trio.open_nursery() as nursery:
         for i in range(peer_count):
             nursery.start_soon(run_single_client_ping, destination, listen_addr)
-            nursery.start_soon(run_single_client_identify, destination, listen_addr)
-            nursery.start_soon(
-                run_single_client_yamux_stress, destination, listen_addr, streams
-            )
-            nursery.start_soon(
-                run_single_client_dht, destination, listen_addr, bootstrap
-            )
+            # nursery.start_soon(run_single_client_identify, destination, listen_addr)
+            # nursery.start_soon(
+            #     run_single_client_yamux_stress, destination, listen_addr, streams
+            # )
+            # nursery.start_soon(
+            #     run_single_client_dht, destination, listen_addr, bootstrap
+            # )
 
     # This block only runs AFTER all nursery tasks finish
     if os.path.exists(FAILURE_LOG_FILE):
