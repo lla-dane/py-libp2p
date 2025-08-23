@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+  # Increase capacity for high-concurrency scenarios
+  external_labels:
+    monitor: 'libp2p-stress-test'
+
+scrape_configs:
+  - job_name: 'libp2p-ping-server'
+    static_configs:
+      - targets: ['host.docker.internal:8081']
+    scrape_interval: 5s
+    metrics_path: /
+
+  - job_name: 'libp2p-ping-client'
+    static_configs:
+      - targets: ['host.docker.internal:8082']
+    scrape_interval: 5s
+    metrics_path: / 
