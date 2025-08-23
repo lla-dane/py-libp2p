@@ -1,0 +1,262 @@
+"""
+Validator classes for record validation and selection.
+"""
+
+from abc import ABC, abstractmethod
+
+import base58
+import multihash
+
+from libp2p.crypto.keys import PublicKey
+
+from .exceptions import (
+    ErrInvalidMultihash,
+    ErrInvalidPublicKey,
+    ErrInvalidRecord,
+    ErrInvalidRecordType,
+)
+from .utils import SplitKey
+
+
+class Validator(ABC):
+    """
+    Abstract base class for record validators.
+
+    Validators are responsible for validating records and selecting
+    the best record when multiple records exist for the same key.
+    """
+
+    @abstractmethod
+    def validate(self, key: str, value: bytes) -> None:
+        """
+        Validate a record.
+
+        Args:
+            key: The record key
+            value: The record value
+
+        Raises:
+            Exception: If the record is invalid
+
+        """
+        pass
+
+    @abstractmethod
+    def select(self, key: str, values: list[bytes]) -> int:
+        """
+        Select the best record from a list of values.
+
+        Args:
+            key: The record key
+            values: List of record values
+
+        Returns:
+            Index of the selected record
+
+        Raises:
+            Exception: If selection fails
+
+        """
+        pass
+
+
+class PublicKeyValidator(Validator):
+    """
+    Validator for public key records (namespace 'pk').
+
+    Validates that the record contains a valid public key and that
+    the key hash matches the expected peer ID.
+    """
+
+    def validate(self, key: str, value: bytes) -> None:
+        """
+        Validate a public key record.
+
+        Args:
+            key: The record key (should be in format "/pk/<peer-id>")
+            value: The public key bytes
+
+        Raises:
+            ErrInvalidRecordType: If key format is invalid
+            ErrInvalidPublicKey: If public key is invalid
+            ErrInvalidMultihash: If multihash is invalid
+
+        """
+        try:
+            namespace, path = SplitKey(key)
+        except ErrInvalidRecordType:
+            raise
+
+        if namespace != "pk":
+            raise ErrInvalidRecordType(
+                f"invalid namespace for public key validator: {namespace}"
+            )
+
+        # Validate that path is a valid multihash (peer ID)
+        try:
+            # Decode the peer ID from base58
+            peer_id_bytes = base58.b58decode(path)
+
+            # Verify it's a valid multihash
+            try:
+                multihash.decode(peer_id_bytes)
+            except Exception as e:
+                raise ErrInvalidMultihash(f"invalid multihash in key: {e}")
+
+        except Exception as e:
+            raise ErrInvalidMultihash(f"invalid peer ID in key: {e}")
+
+        # Try to parse and deserialize the public key protobuf
+        try:
+            # First parse the protobuf to get the key type and data
+            protobuf_key = PublicKey.deserialize_from_protobuf(value)
+
+            # Validate protobuf structure
+            if not hasattr(protobuf_key, "key_type") or not hasattr(
+                protobuf_key, "data"
+            ):
+                raise ErrInvalidPublicKey("invalid public key protobuf structure")
+
+        except Exception as e:
+            raise ErrInvalidPublicKey(f"failed to parse public key protobuf: {e}")
+
+        # Deserialize the public key to get the actual PublicKey object
+        try:
+            from libp2p.crypto.serialization import deserialize_public_key
+            from libp2p.peer.id import ID
+
+            # Deserialize the public key bytes to get the actual key object
+            public_key = deserialize_public_key(value)
+
+            # Generate peer ID from the public key
+            generated_peer_id = ID.from_pubkey(public_key)
+
+            # Compare the generated peer ID with the expected peer ID from the key
+            expected_peer_id_str = path  # This is the peer ID part from "/pk/<peer-id>"
+
+            # Convert generated peer ID to base58 for comparison
+            if generated_peer_id.to_base58() != expected_peer_id_str:
+                raise ErrInvalidPublicKey(
+                    f"public key does not match expected peer ID: "
+                    f"expected {expected_peer_id_str}, "
+                    f"got {generated_peer_id.to_base58()}"
+                )
+
+        except Exception as e:
+            if isinstance(e, ErrInvalidPublicKey):
+                raise
+            raise ErrInvalidPublicKey(f"failed to validate public key: {e}")
+
+    def select(self, key: str, values: list[bytes]) -> int:
+        """
+        Select the best public key record.
+
+        For public key records, we always return the first valid record
+        since there should only be one valid public key per peer ID.
+
+        Args:
+            key: The record key
+            values: List of public key values
+
+        Returns:
+            Index 0 (always selects the first record)
+
+        """
+        if not values:
+            raise ErrInvalidRecord("no values to select from")
+
+        # For public key records, we validate the first one and return it
+        # In practice, there should only be one valid public key per peer ID
+        self.validate(key, values[0])
+        return 0
+
+
+class NamespacedValidator:
+    """
+    A validator that routes validation to namespace-specific validators.
+
+    This is the main validator that clients interact with. It determines
+    the appropriate validator based on the record key's namespace.
+    """
+
+    def __init__(self) -> None:
+        """Initialize the namespaced validator with default validators."""
+        self._validators: dict[str, Validator] = {"pk": PublicKeyValidator()}
+
+    def add_validator(self, namespace: str, validator: Validator) -> None:
+        """
+        Add a validator for a specific namespace.
+
+        Args:
+            namespace: The namespace to handle
+            validator: The validator instance
+
+        """
+        self._validators[namespace] = validator
+
+    def validator_by_key(self, key: str) -> Validator | None:
+        """
+        Get the appropriate validator for a key.
+
+        Args:
+            key: The record key
+
+        Returns:
+            The validator for the key's namespace, or None if not found
+
+        """
+        try:
+            namespace, _ = SplitKey(key)
+            return self._validators.get(namespace)
+        except ErrInvalidRecordType:
+            return None
+
+    def validate(self, key: str, value: bytes) -> None:
+        """
+        Validate a record using the appropriate namespace validator.
+
+        Args:
+            key: The record key
+            value: The record value
+
+        Raises:
+            ErrInvalidRecordType: If key format is invalid or no validator found
+            Other exceptions: As raised by the specific validator
+
+        """
+        try:
+            namespace, _ = SplitKey(key)
+        except ErrInvalidRecordType:
+            raise ErrInvalidRecordType(f"invalid key format: {key}")
+
+        validator = self._validators.get(namespace)
+        if validator is None:
+            raise ErrInvalidRecordType(f"no validator for namespace: {namespace}")
+
+        validator.validate(key, value)
+
+    def select(self, key: str, values: list[bytes]) -> int:
+        """
+        Select the best record using the appropriate namespace validator.
+
+        Args:
+            key: The record key
+            values: List of record values
+
+        Returns:
+            Index of the selected record
+
+        Raises:
+            ErrInvalidRecordType: If key format is invalid or no validator found
+            Other exceptions: As raised by the specific validator
+
+        """
+        validator = self.validator_by_key(key)
+        if validator is None:
+            try:
+                namespace, _ = SplitKey(key)
+                raise ErrInvalidRecordType(f"no validator for namespace: {namespace}")
+            except ErrInvalidRecordType:
+                raise ErrInvalidRecordType(f"invalid key format: {key}")
+
+        return validator.select(key, values)
