@@ -27,6 +27,7 @@ from libp2p.custom_types import (
 from libp2p.peer.id import (
     ID,
 )
+from libp2p.peer.peerstore import env_to_send_in_RPC
 from libp2p.tools.async_service import (
     Service,
 )
