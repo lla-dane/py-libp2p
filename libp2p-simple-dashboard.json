@@ -1,0 +1,63 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "libp2p Ping Metrics Simple",
+    "tags": ["libp2p", "ping"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Ping Requests Total",
+        "type": "stat",
+        "targets": [
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "eeth22n71nda8c"
+            },
+            "expr": "libp2p_ping_requests_total",
+            "legendFormat": "{{peer_id}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Ping Request Rate",
+        "type": "timeseries",
+        "targets": [
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "eeth22n71nda8c"
+            },
+            "expr": "rate(libp2p_ping_requests_total[5m])",
+            "legendFormat": "{{peer_id}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+      },
+      {
+        "id": 3,
+        "title": "Ping Errors",
+        "type": "timeseries",
+        "targets": [
+          {
+            "datasource": {
+              "type": "prometheus",
+              "uid": "eeth22n71nda8c"
+            },
+            "expr": "libp2p_ping_errors_total",
+            "legendFormat": "{{error_type}} - {{peer_id}}"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8}
+      }
+    ],
+    "time": {
+      "from": "now-5m",
+      "to": "now"
+    },
+    "refresh": "5s"
+  }
+} 
