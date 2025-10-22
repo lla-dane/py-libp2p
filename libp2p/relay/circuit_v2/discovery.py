@@ -37,7 +37,6 @@ from .config import (
     DEFAULT_DISCOVERY_STREAM_TIMEOUT,
     DEFAULT_PEER_PROTOCOL_TIMEOUT,
 )
-from .lib.peer.peerstore import env_to_send_in_RPC
 from .pb.circuit_pb2 import (
     HopMessage,
 )

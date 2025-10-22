@@ -45,7 +45,6 @@ from libp2p.peer.peerinfo import (
     PeerInfo,
 )
 from libp2p.peer.peerstore import create_signed_peer_record
-from libp2p.peer.peerstore import create_signed_peer_record
 from libp2p.protocol_muxer.exceptions import (
     MultiselectClientError,
     MultiselectError,
