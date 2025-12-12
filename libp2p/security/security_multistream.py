@@ -81,6 +81,7 @@ class SecurityMultistream(ABC):
 
         :return: secure connection object (that implements secure_conn_interface)
         """
+        print("INBOUND CONNECTION")
         transport = await self.select_transport(conn, False)
         secure_conn = await transport.secure_inbound(conn)
         return secure_conn

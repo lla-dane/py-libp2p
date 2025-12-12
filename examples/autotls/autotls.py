@@ -313,8 +313,7 @@ async def run(port: int, destination: str, psk: int, transport: str) -> None:
     _ = get_optimal_binding_address(8000)
 
     if transport == "tcp":
-        # listen_addrs = get_available_interfaces(port)
-        listen_addrs = [multiaddr.Multiaddr(f"/ip4/0.0.0.0/tcp/{port}/")]
+        listen_addrs = get_available_interfaces(port)
     if transport == "ws":
         listen_addrs = [multiaddr.Multiaddr(f"/ip4/127.0.0.1/tcp/{port}/ws")]
         
