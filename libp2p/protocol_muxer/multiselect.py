@@ -71,6 +71,7 @@ class Multiselect(IMultiselectMuxer):
                         command = await communicator.read()
                         print("COMMAND: ", command)
                     except MultiselectCommunicatorError as error:
+                        print("ERROR IN NEGOTIATE READ")
                         raise MultiselectError() from error
 
                     if command == "ls":
@@ -94,9 +95,11 @@ class Multiselect(IMultiselectMuxer):
 
                             return protocol_to_check, self.handlers[protocol_to_check]
                         try:
-                            print("PROTOCOL NOT IN HANDLERS: ", command)
                             await communicator.write(PROTOCOL_NOT_FOUND_MSG)
+                            print("PROTOCOL NOT IN HANDLERS: ", command)
+                            
                         except MultiselectCommunicatorError as error:
+                            print("ERROR IN NEGOTIATE WRITE")
                             raise MultiselectError() from error
 
                 raise MultiselectError("Negotiation failed: no matching protocol")
