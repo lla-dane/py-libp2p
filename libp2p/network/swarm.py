@@ -641,7 +641,9 @@ class Swarm(Service, INetworkService):
                     except Exception:
                         await read_write_closer.close()
                     return
+                print("GOT THE STREAM HERE NOW")
                 raw_conn = RawConnection(read_write_closer, False)
+                print("GOING FOR UPGRADING THE INBOUND RAW CONN...")
                 await self.upgrade_inbound_raw_conn(raw_conn, maddr)
                 # NOTE: This is a intentional barrier to prevent from the handler
                 # exiting and closing the connection.
