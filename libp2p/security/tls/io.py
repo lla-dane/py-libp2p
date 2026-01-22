@@ -432,6 +432,7 @@ class TLSReadWriter(EncryptedMsgReadWriter):
 
         """
         await self.stream_writer.handshake(enable_autotls)
+        print("handshake completed")
 
         # There are lint errors here, telling to update the constructor of
         # this class. Since this is only temporary, I will put type ignore here
