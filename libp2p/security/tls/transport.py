@@ -324,6 +324,15 @@ class TLSTransport(ISecureTransport):
                     "TLS inbound: using peerid obtained from placeholder keypair"
                 )
 
+            # This is the case when the autotls is enabled, and we did a self-signed 
+            # certificate handshake with AUTO-TLS BROKER, and naturally we didn't do the
+            # primitive peer-identify exchange, so again use a placeholde
+            if self.enable_autotls and remote_peer_id is None:
+                placeholder_keypair = libp2p.generate_new_ed25519_identity()
+                remote_public_key = placeholder_keypair.public_key
+                remote_peer_id = ID.from_pubkey(remote_public_key)
+                
+            
             if remote_peer_id is None:
                 raise ValueError(
                     "remote peer ID must be known before creating SecureSession"
