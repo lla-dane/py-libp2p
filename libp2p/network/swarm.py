@@ -105,6 +105,7 @@ class Swarm(Service, INetworkService):
         retry_config: RetryConfig | None = None,
         connection_config: ConnectionConfig | QUICTransportConfig | None = None,
         psk: str | None = None,
+        metric_send_channel: trio.MemorySendChannel | None = None,
     ):
         self.self_id = peer_id
         self.peerstore = peerstore
@@ -131,6 +132,9 @@ class Swarm(Service, INetworkService):
         # Load balancing state
         self._round_robin_index = {}
         self._resource_manager = None
+
+        # Metrics
+        self.metric_send_channel = metric_send_channel
 
     def set_resource_manager(self, resource_manager: ResourceManager | None) -> None:
         """Attach a ResourceManager to wire connection/stream scopes."""
@@ -469,6 +473,9 @@ class Swarm(Service, INetworkService):
                 pass
 
         swarm_conn = await self.add_conn(muxed_conn)
+
+        swarm_conn._metric_send_channel = self.metric_send_channel
+
         logger.debug("Swarm: successfully dialed peer %s", peer_id)
         return swarm_conn
 
