@@ -194,3 +194,4 @@ tests/interop/js_libp2p/js_node/src/package-lock.json
 _build/
 
 libp2p-forge
+libp2p-metrics
